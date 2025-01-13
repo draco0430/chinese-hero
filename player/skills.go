@@ -2,6 +2,7 @@ package player
 
 import (
 	"hero-server/database"
+	"hero-server/messaging"
 	"hero-server/utils"
 )
 
@@ -41,8 +42,6 @@ func (h *UpgradeSkillHandler) Handle(s *database.Socket, data []byte) ([]byte, e
 
 func (h *DowngradeSkillHandler) Handle(s *database.Socket, data []byte) ([]byte, error) {
 
-	return nil, nil
-
 	slotIndex := data[6]
 	skillIndex := data[7]
 
@@ -63,7 +62,7 @@ func (h *RemoveSkillHandler) Handle(s *database.Socket, data []byte) ([]byte, er
 	if err != nil {
 		return nil, err
 	} else if slot == nil {
-		return nil, nil
+		return messaging.SystemMessage(messaging.BOOK_OF_ARTS_EXCHANGE_MISSING), nil
 	}
 
 	skillData, err := s.Character.RemoveSkill(slotIndex, bookID)
@@ -98,8 +97,6 @@ func (h *UpgradePassiveSkillHandler) Handle(s *database.Socket, data []byte) ([]
 
 func (h *DowngradePassiveSkillHandler) Handle(s *database.Socket, data []byte) ([]byte, error) {
 
-	return nil, nil
-
 	slotIndex := data[6]
 	skillIndex := byte(0)
 	if slotIndex == 0 {
@@ -127,7 +124,7 @@ func (h *RemovePassiveSkillHandler) Handle(s *database.Socket, data []byte) ([]b
 	if err != nil {
 		return nil, err
 	} else if slot == nil {
-		return nil, nil
+		return messaging.SystemMessage(messaging.BOOK_OF_ARTS_EXCHANGE_MISSING), nil
 	}
 
 	skillIndex := byte(0)

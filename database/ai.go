@@ -480,6 +480,21 @@ func (ai *AI) DealDamage(damage int) []byte {
 		return nil
 	}
 
+	if damage > 0 {
+		if character.Injury < MAX_INJURY {
+			character.Injury += 0.001
+			if character.Injury > MAX_INJURY {
+				character.Injury = MAX_INJURY
+			}
+			if character.Injury >= 70 {
+				statData, err := character.GetStats()
+				if err == nil {
+					character.Socket.Write(statData)
+				}
+			}
+		}
+	}
+
 	stat.HP = int(math.Max(float64(stat.HP-damage), 0)) // deal damage
 	if stat.HP <= 0 {
 		ai.TargetPlayerID = 0

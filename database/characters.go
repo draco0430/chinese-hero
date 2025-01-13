@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -224,6 +225,7 @@ type Character struct {
 	AdditionalDropMultiplier float64   `db:"additional_drop_multiplier" json:"additional_drop_multiplier"`
 	AidMode                  bool      `db:"aid_mode" json:"aid_mode"`
 	AidTime                  uint32    `db:"aid_time" json:"aid_time"`
+	Injury                   float64   `db:"injury" json:"injury"`
 	HonorRank                int64     `db:"rank" json:"rank"`
 	YingYangTicketsLeft      bool      `db:"ying_yang_tickets" json:"ying_yang_tickets"`
 	RebornLevel              int       `db:"reborn_level" json:"reborn_level"`
@@ -272,11 +274,12 @@ type Character struct {
 	IsMounting        bool            `db:"-" json:"-"`
 	PlayerAidSettings *AidSettings    `db:"-" json:"-"`
 
-	IsAcceptedWar   bool `db:"-" json:"-"`
-	IsinWar         bool `db:"-" json:"-"`
-	IsinLastMan     bool `db:"-" json:"-"`
-	WarKillCount    int  `db:"-" json:"-"`
-	WarContribution int  `db:"-" json:"-"`
+	IsAcceptedWar   bool    `db:"-" json:"-"`
+	IsinWar         bool    `db:"-" json:"-"`
+	IsinLastMan     bool    `db:"-" json:"-"`
+	WarKillCount    int     `db:"-" json:"-"`
+	InjuryCount     float64 `db:"-"`
+	WarContribution int     `db:"-" json:"-"`
 
 	UsedPotion bool `db:"-" json:"-"`
 	UsedConsig bool `db:"-" json:"-"`
@@ -2044,10 +2047,7 @@ func (c *Character) SplitItem(where, to, quantity uint16) ([]byte, error) {
 
 func (c *Character) GetHPandChi() []byte {
 	hpChi := HP_CHI
-	if c == nil || c.Socket == nil {
-		return nil
-	}
-	if c.Socket.Stats == nil {
+	if c.Socket == nil {
 		return nil
 	}
 	stat := c.Socket.Stats
@@ -2059,19 +2059,20 @@ func (c *Character) GetHPandChi() []byte {
 
 	count := 0
 	buffs, _ := FindBuffsByCharacterID(c.ID)
-	index := 22
 	for _, buff := range buffs {
+
 		_, ok := BuffInfections[buff.ID]
 		if !ok {
 			continue
 		}
+		if buff.ID == 10100 || buff.ID == 90098 {
 
-		hpChi.Insert(utils.IntToBytes(uint64(buff.ID), 4, true), index)
-		index += 4
-		hpChi.Insert(utils.IntToBytes(uint64(buff.SkillPlus), 1, false), index)
-		index++
-		hpChi.Insert([]byte{0x01}, index)
-		index++
+			continue
+		}
+
+		hpChi.Insert(utils.IntToBytes(uint64(buff.ID), 4, true), 22)
+		hpChi.Insert(utils.IntToBytes(uint64(buff.SkillPlus), 1, false), 26)
+		hpChi.Insert([]byte{0x01}, 27)
 		count++
 	}
 
@@ -2081,12 +2082,35 @@ func (c *Character) GetHPandChi() []byte {
 		count++
 	}
 
-	hpChi[19] = byte(0x02)
 	hpChi[21] = byte(count) // buff count
-	index += 5
-	//hpChi[index] = byte(15)
-	//hpChi.SetLength(int16(binary.Size(hpChi) - 6))
+
+	injuryNumbers := c.CalculateInjury()
+	injury1 := fmt.Sprintf("%x", injuryNumbers[1]) //0.7
+	injury0 := fmt.Sprintf("%x", injuryNumbers[0]) //0.1
+	injury3 := fmt.Sprintf("%x", injuryNumbers[3]) //17.48
+	injury2 := fmt.Sprintf("%x", injuryNumbers[2]) //1.09
+	injuryByte1 := string(injury0 + injury1)
+	data, err := hex.DecodeString(injuryByte1)
+	if err != nil {
+		panic(err)
+	}
+	injuryByte2 := string(injury3 + injury2)
+	data2, err := hex.DecodeString(injuryByte2)
+	if err != nil {
+		panic(err)
+	}
+
+	hpChi.Overwrite(data, len(hpChi)-18)
+	hpChi.Overwrite(data2, len(hpChi)-16)
+
 	hpChi.SetLength(int16(0x28 + count*6))
+
+	// hpChi[19] = byte(0x02)
+	// hpChi[21] = byte(count) // buff count
+	// index += 5
+	// //hpChi[index] = byte(15)
+	// //hpChi.SetLength(int16(binary.Size(hpChi) - 6))
+	// hpChi.SetLength(int16(0x28 + count*6))
 	return hpChi
 }
 
@@ -2105,7 +2129,8 @@ func (c *Character) Handler() {
 	c.Epoch++
 
 	if st.HP > 0 && c.Epoch%2 == 0 {
-		hp, chi := st.HP, st.CHI
+		//hp, chi := st.HP, st.CHI
+		hp, chi, injury := st.HP, st.CHI, c.Injury
 		if st.HP += st.HPRecoveryRate; st.HP > st.MaxHP {
 			st.HP = st.MaxHP
 		}
@@ -2114,8 +2139,29 @@ func (c *Character) Handler() {
 			st.CHI = st.MaxCHI
 		}
 
+		// if c.Meditating {
+		// 	if st.HP += st.HPRecoveryRate; st.HP > st.MaxHP {
+		// 		st.HP = st.MaxHP
+		// 	}
+
+		// 	if st.CHI += st.CHIRecoveryRate; st.CHI > st.MaxCHI {
+		// 		st.CHI = st.MaxCHI
+		// 	}
+		// }
 		if c.Meditating {
-			if st.HP += st.HPRecoveryRate; st.HP > st.MaxHP {
+			if c.Injury > 0 {
+				c.Injury--
+				if c.Injury < 0 {
+					c.Injury = 0
+				} else if c.Injury <= 70 {
+					statData, err := c.GetStats()
+					if err == nil {
+						c.Socket.Write(statData)
+					}
+				}
+			}
+			hprecoveramount := st.MaxHP * st.HPRecoveryRate / 1000
+			if st.HP += hprecoveramount; st.HP > st.MaxHP {
 				st.HP = st.MaxHP
 			}
 
@@ -2124,11 +2170,36 @@ func (c *Character) Handler() {
 			}
 		}
 
-		if hp != st.HP || chi != st.CHI {
+		if hp != st.HP || chi != st.CHI || injury != c.Injury {
 			c.Socket.Write(c.GetHPandChi()) // hp-chi packet
 		}
 
+	} else if st.HP > 0 && c.Epoch%5 == 0 {
+		hp, chi, injury := st.HP, st.CHI, c.Injury
+		hprecoveramount := st.MaxHP * st.HPRecoveryRate / 1000
+		if st.HP += hprecoveramount; st.HP > st.MaxHP {
+			st.HP = st.MaxHP
+		}
+
+		if st.CHI += st.CHIRecoveryRate; st.CHI > st.MaxCHI {
+			st.CHI = st.MaxCHI
+		}
+		if hp != st.HP || chi != st.CHI || injury != c.Injury {
+			c.Socket.Write(c.GetHPandChi()) // hp-chi packet
+		}
 	} else if st.HP <= 0 && !c.Respawning { // dead
+		if c.Injury < MAX_INJURY {
+			c.Injury += 20
+			if c.Injury >= MAX_INJURY {
+				c.Injury = MAX_INJURY
+			}
+			if c.Injury >= 70 {
+				statData, err := c.GetStats()
+				if err == nil {
+					c.Socket.Write(statData)
+				}
+			}
+		}
 		c.Respawning = true
 		st.HP = 0
 		c.Socket.Write(c.GetHPandChi())
@@ -3811,6 +3882,24 @@ func (c *Character) GetStats() ([]byte, error) {
 
 	resp.Insert(utils.IntToBytes(uint64(st.Dodge), 2, true), index) // character dodge
 	index += 2
+
+	index += 2
+	resp.Insert(utils.IntToBytes(uint64(st.Dodge), 2, true), index) // character PoisonDamage
+	index += 2
+	resp.Insert(utils.IntToBytes(uint64(st.PoisonDEF), 2, true), index) // character PoisonDef
+	index += 2
+	index++
+	resp.Insert(utils.IntToBytes(uint64(st.ConfusionATK), 2, true), index) // character ParaATK
+	index += 2
+	resp.Insert(utils.IntToBytes(uint64(st.ConfusionDEF), 2, true), index) // character ParaDEF
+	index += 2
+	index++
+	resp.Insert(utils.IntToBytes(uint64(st.ParalysisATK), 2, true), index) // character ConfusionATK
+	index += 2
+	resp.Insert(utils.IntToBytes(uint64(st.ParalysisDEF), 2, true), index) // character ConfusionDef
+	index += 3
+
+	resp.SetLength(int16(binary.Size(resp) - 6))
 
 	resp.Concat(c.GetHPandChi()) // hp and chi
 	return resp, nil
@@ -5644,6 +5733,17 @@ func (c *Character) UseConsumable(item *InventorySlot, slotID int16) ([]byte, er
 
 		return nil, nil
 
+	case ESOTERIC_POTION_TYPE:
+		if item == nil {
+			goto FALLBACK
+		}
+		c.Injury = 0 // reset injury
+		c.Update()
+
+		resp = c.GetHPandChi()
+		stat, _ := c.GetStats()
+		resp.Concat(stat)
+
 	case WRAPPER_BOX_TYPE:
 		c.InvMutex.Lock()
 		defer c.InvMutex.Unlock()
@@ -6407,14 +6507,14 @@ func (c *Character) DowngradePassiveSkill(slotIndex, skillIndex byte) ([]byte, e
 	}
 
 	if skillIndex == 5 && set.Skills[0].Plus > 0 { // 1st job skill
-		//requiredSP := SkillPTS["fjp"][set.Skills[0].Plus-1]
+		requiredSP := SkillPTS["fjp"][set.Skills[0].Plus-1]
 
-		//skills.SkillPoints += requiredSP
+		skills.SkillPoints += requiredSP
 
 	} else if skillIndex == 7 && set.Skills[0].Plus > 0 { // running
-		//requiredSP := SkillPTS["wd"][set.Skills[0].Plus]
+		requiredSP := SkillPTS["wd"][set.Skills[0].Plus]
 
-		//skills.SkillPoints += requiredSP
+		skills.SkillPoints += requiredSP
 		c.RunningSpeed = 10.0 + (float64(set.Skills[0].Plus-1) * 0.2)
 	}
 
@@ -6431,6 +6531,7 @@ func (c *Character) DowngradePassiveSkill(slotIndex, skillIndex byte) ([]byte, e
 	if err != nil {
 		return nil, err
 	}
+	log.Println("----")
 
 	resp.Concat(statData)
 	resp.Concat(c.GetExpAndSkillPts())
@@ -7953,22 +8054,21 @@ func (c *Character) DealDamage(ai *AI, dmg int) {
 			}
 		}
 	}
-	/*	c.Injury += 0.1
-		injuryNumbers := c.CalculateInjury()
-		injury1 := fmt.Sprintf("%x", injuryNumbers[1]) //0.7
-		injury0 := fmt.Sprintf("%x", injuryNumbers[0]) //0.1
-		injury3 := fmt.Sprintf("%x", injuryNumbers[3]) //17.48
-		injury2 := fmt.Sprintf("%x", injuryNumbers[2]) //1.09
-		injuryByte1 := string(injury1 + injury0)
-		data, err := hex.DecodeString(injuryByte1)
-		if err != nil {
-			panic(err)
-		}
-		injuryByte2 := string(injury2 + injury3)
-		data2, err := hex.DecodeString(injuryByte2)
-		if err != nil {
-			panic(err)
-		}*/
+	// injuryNumbers := c.CalculateInjury()
+	// injury1 := fmt.Sprintf("%x", injuryNumbers[1]) //0.7
+	// injury0 := fmt.Sprintf("%x", injuryNumbers[0]) //0.1
+	// injury3 := fmt.Sprintf("%x", injuryNumbers[3]) //17.48
+	// injury2 := fmt.Sprintf("%x", injuryNumbers[2]) //1.09
+	// injuryByte1 := string(injury0 + injury1)
+	// data, err := hex.DecodeString(injuryByte1)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// injuryByte2 := string(injury3 + injury2)
+	// data2, err := hex.DecodeString(injuryByte2)
+	// if err != nil {
+	// 	panic(err)
+	// }
 	npcID := uint64(NPCPos[ai.PosID].NPCID)
 	npc := NPCs[int(npcID)]
 	npcMaxHPHalf := (npc.MaxHp / 2) / 10
@@ -9144,4 +9244,22 @@ func (c *Character) Enchant(bookID int64, matsSlots []int16, matsIds []int64) ([
 
 	return resp, nil
 
+}
+func (c *Character) CalculateInjury() []int {
+	remaining := c.Injury
+	divCount := []int{0, 0, 0, 0}
+	divNumbers := []float64{0.1, 0.7, 1.09, 17.48}
+	for i := len(divNumbers) - 1; i >= 0; i-- {
+		if remaining < divNumbers[i] || remaining == 0 {
+			continue
+		}
+		test := remaining / divNumbers[i]
+		if test > 15 {
+			test = 15
+		}
+		divCount[i] = int(test)
+		test2 := test * divNumbers[i]
+		remaining -= test2
+	}
+	return divCount
 }

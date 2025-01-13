@@ -158,6 +158,7 @@ func (h *RespawnHandler) Handle(s *database.Socket, data []byte) ([]byte, error)
 
 		teleportData := s.Character.Teleport(point)
 		resp.Concat(teleportData)
+		s.Character.Injury = 0
 
 		s.Character.IsActive = false
 		stat.HP = stat.MaxHP

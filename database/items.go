@@ -31,6 +31,7 @@ const (
 	FORTUNE_BOX_TYPE
 	MARBLE_TYPE
 	WRAPPER_BOX_TYPE
+	ESOTERIC_POTION_TYPE
 	NPC_SUMMONER_TYPE
 	FIRE_SPIRIT
 	WATER_SPIRIT
@@ -189,6 +190,8 @@ func (item *Item) GetType() int {
 		return DEAD_SPIRIT_INCENSE_TYPE
 	} else if item.Type == 233 {
 		return NPC_SUMMONER_TYPE
+	} else if item.Type == 150 {
+		return ESOTERIC_POTION_TYPE
 	}
 	return UNKNOWN_TYPE
 }

@@ -171,6 +171,9 @@ func (csh *StartGameHandler) startGame(s *database.Socket) ([]byte, error) {
 	s.Character.OnSight.Pets = make(map[int]interface{})
 	s.Character.OnSight.Players = make(map[int]interface{})
 	s.Character.UsedConsumables.Items = make(map[int64]bool)
+	if s.Character.Injury > database.MAX_INJURY {
+		s.Character.Injury = database.MAX_INJURY
+	}
 	s.Character.ExploreWorld = func() {
 		for {
 			if s.Character.ExploreWorld == nil {

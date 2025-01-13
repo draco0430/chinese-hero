@@ -598,13 +598,11 @@ func (h *ChatHandler) cmdMessage(s *database.Socket, data []byte) ([]byte, error
 
 			ch := s.Character
 			if len(parts) > 2 {
-				chID, err := strconv.ParseInt(parts[2], 10, 64)
-				if err == nil {
-					chr, err := database.FindCharacterByID(int(chID))
-					if err == nil {
-						ch = chr
-					}
+				c, err := database.FindCharacterByName(parts[2])
+				if err != nil {
+					return nil, err
 				}
+				ch = c
 			}
 
 			data, levelUp := ch.AddExp(amount)
@@ -618,8 +616,6 @@ func (h *ChatHandler) cmdMessage(s *database.Socket, data []byte) ([]byte, error
 			if ch.Socket != nil {
 				ch.Socket.Write(data)
 			}
-
-			go logger.Log(logging.ACTION_ADD_EXP, s.Character.ID, fmt.Sprintf("%s isimli oyuncu %s isimli oyuncuya %d exp verdi", s.Character.Name, ch.Name, amount), s.User.ID, s.Character.Name)
 
 			return nil, nil
 		case "home":

@@ -76,6 +76,13 @@ type Stat struct {
 	Fire            int `db:"fire"`
 	FireBuff        int `db:"fire_buff"`
 	NaturePoints    int `db:"nature_points"`
+
+	PVPdef                int     `db:"-"`
+	AdditionalPVPdefRate  float32 `db:"-"`
+	AdditionalPVPsdefRate float32 `db:"-"`
+	PVPsdef               int     `db:"-"`
+	PVPdmg                int     `db:"-"`
+	PVPsdmg               int     `db:"-"`
 }
 
 func (t *Stat) Create(c *Character) error {
@@ -191,6 +198,25 @@ func (t *Stat) Calculate() error {
 
 	temp.Accuracy += int(float32(temp.STRBuff) * 0.925)
 	temp.Dodge += temp.DEXBuff
+
+	if c.Injury > 70 {
+		injury := float32(0.7)
+		if c.Injury > 80 {
+			injury = float32(0.5)
+		}
+		if c.Injury > 90 {
+			injury = float32(0.3)
+		}
+		temp.MinATK = int(float32(temp.MinATK) * injury)
+		temp.MaxATK = int(float32(temp.MaxATK) * injury)
+		temp.MinArtsATK = int(float32(temp.MinArtsATK) * injury)
+		temp.MaxArtsATK = int(float32(temp.MaxArtsATK) * injury)
+
+		temp.Accuracy = int(float32(temp.Accuracy) * injury)
+		temp.DEF = int(float32(temp.DEF) * injury)
+		temp.ArtsDEF = int(float32(temp.ArtsDEF) * injury)
+		temp.DefRate = int(float32(temp.DefRate) * injury)
+	}
 
 	*t = temp
 	go t.Update()

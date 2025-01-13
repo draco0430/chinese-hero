@@ -18,13 +18,14 @@ import (
 var (
 	DROP_LIFETIME     = time.Duration(30) * time.Second
 	FREEDROP_LIFETIME = time.Duration(200) * time.Millisecond
-	DEFAULT_DROP_RATE = utils.ParseFloat(os.Getenv("DROP_RATE"))
-	DEFAULT_EXP_RATE  = utils.ParseFloat(os.Getenv("EXP_RATE"))
+	DEFAULT_DROP_RATE = utils.ParseFloat("1.0")
+	DEFAULT_EXP_RATE  = utils.ParseFloat("1.0")
 	DROP_RATE         = DEFAULT_DROP_RATE
 	EXP_RATE          = DEFAULT_EXP_RATE
 	DRAGON_BOX        = 0
 	GOLD_EVENT        = 0
 	GOLD_RATE         = 1.0
+	MAX_INJURY        = utils.ParseFloat("100.0")
 )
 
 var (

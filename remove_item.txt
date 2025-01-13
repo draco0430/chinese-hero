@@ -1,0 +1,4 @@
+[+] 10.01.2025 19:58:23 - fa78a0bd-9e89-4b0f-8893-57fc1f7d5676 idli kullanici (test) isimli karakterine ait (Novice Help Kits) iteminin süresi doldu veya sildi.
+[+] 10.01.2025 19:58:24 - fa78a0bd-9e89-4b0f-8893-57fc1f7d5676 idli kullanici (test) isimli karakterine ait (Bag Expansion(1 day)) iteminin süresi doldu veya sildi.
+[+] 10.01.2025 20:15:58 - fa78a0bd-9e89-4b0f-8893-57fc1f7d5676 idli kullanici (test) isimli karakterine ait (Wind Drift Arts) iteminin süresi doldu veya sildi.
+[+] 10.01.2025 20:19:29 - fa78a0bd-9e89-4b0f-8893-57fc1f7d5676 idli kullanici (test) isimli karakterine ait (New: Tae-Geuk Pentachord Arts) iteminin süresi doldu veya sildi.
