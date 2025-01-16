@@ -198,7 +198,7 @@ func (h *AddTradeItemHandler) Handle(s *database.Socket, data []byte) ([]byte, e
 	if info == nil { // 01.12.2023 // BUG FIX
 		return nil, nil
 	}
-	if !info.Tradable || info.Type == 3 {
+	if info.Tradable == 2 || info.Type == 3 {
 		return nil, nil
 	}
 

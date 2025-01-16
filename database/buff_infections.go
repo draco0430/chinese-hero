@@ -12,14 +12,22 @@ var (
 )
 
 type BuffInfection struct {
-	ID                                int     `db:"id"`
-	Name                              string  `db:"name"`
-	PoisonDef                         int     `db:"poison_def"`
-	AdditionalPoisonDef               int     `db:"additional_poison_def"`
-	ParalysisDef                      int     `db:"paralysis_def"`
-	AdditionalParalysisDef            int     `db:"additional_para_def"`
-	ConfusionDef                      int     `db:"confusion_def"`
-	AdditionalConfusionDef            int     `db:"additional_confusion_def"`
+	ID   int    `db:"id"`
+	Name string `db:"name"`
+
+	PoisonDef                 int `db:"poison_def"`
+	AdditionalPoisonDef       int `db:"additional_poison_def"`
+	ParalysisDef              int `db:"paralysis_def"`
+	AdditionalParalysisDef    int `db:"additional_para_def"`
+	ConfusionDef              int `db:"confusion_def"`
+	AdditionalConfusionDef    int `db:"additional_confusion_def"`
+	PoisonDamage              int `db:"poison_dmg"`
+	AdditionalPoisonDamage    int `db:"additional_poison_dmg"`
+	ParalysisDamage           int `db:"paralysis_dmg"`
+	AdditionalParalysisDamage int `db:"additional_para_dmg"`
+	ConfusionDamage           int `db:"confusion_dmg"`
+	AdditionalConfusionDamage int `db:"additional_confusion_dmg"`
+
 	BaseDef                           int     `db:"base_def"`
 	AdditionalDEF                     int     `db:"additional_def"`
 	ArtsDEF                           int     `db:"arts_def"`

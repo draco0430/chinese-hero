@@ -69,6 +69,9 @@ type Stat struct {
 	PoisonDEF       int `db:"poison_def"`
 	ParalysisDEF    int `db:"paralysis_def"`
 	ConfusionDEF    int `db:"confusion_def"`
+	Paratime        int `db:"-"`
+	PoisonTime      int `db:"-"`
+	ConfusionTime   int `db:"-"`
 	Wind            int `db:"wind"`
 	WindBuff        int `db:"wind_buff"`
 	Water           int `db:"water"`
@@ -151,6 +154,16 @@ func (t *Stat) Calculate() error {
 	temp.ArtsDEFRate = 0
 	temp.Accuracy = int(float32(temp.STR) * 0.925)
 	temp.Dodge = temp.DEX
+
+	temp.PoisonATK = 0
+	temp.PoisonDEF = 0
+	temp.ParalysisATK = 0
+	temp.ParalysisDEF = 0
+	temp.ConfusionATK = 0
+	temp.ConfusionDEF = 0
+	temp.PoisonTime = 0
+	temp.Paratime = 0
+	temp.ConfusionTime = 0
 
 	c.BuffEffects(&temp)
 	c.JobPassives(&temp)

@@ -419,7 +419,7 @@ func (h *SellItemHandler) Handle(s *database.Socket, data []byte) ([]byte, error
 	item := database.Items[itemID]
 	slot := slots[slotID]
 
-	if !item.Tradable {
+	if item.Tradable == 2 {
 		return nil, nil
 	}
 

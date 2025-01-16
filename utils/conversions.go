@@ -5,12 +5,22 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"strconv"
 )
 
 func check(e error) {
 	if e != nil {
 		log.Fatal(e)
 	}
+}
+
+func StringToFloat64(s string) float64 {
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		log.Println(err)
+		return 0
+	}
+	return f
 }
 
 func ByteArrayToHexString(array []byte, n int) (hex string) {
@@ -30,6 +40,14 @@ func ByteArrayToHexString(array []byte, n int) (hex string) {
 	hex = buffer.String()
 	hex = hex[0 : len(hex)-1]
 	return
+}
+func StringToInt(s string) int {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		log.Println(err, s)
+		return 0
+	}
+	return i
 }
 
 func BytesToInt(arr []byte, reverse bool) int64 {

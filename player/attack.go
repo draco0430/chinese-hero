@@ -954,3 +954,48 @@ func (h *RemoveBuffHandler) Handle(s *database.Socket, data []byte) ([]byte, err
 	go buff.Update()
 	return nil, nil
 }
+
+func ApplyStatusEffects(character, enemy *database.Character) {
+	if character.Socket.Stats.ParalysisATK > enemy.Socket.Stats.ParalysisDEF {
+		atk := character.Socket.Stats.ParalysisATK
+		rand := utils.RandInt(0, 1000)
+		seconds := character.Socket.Stats.Paratime / 10
+		def := enemy.Socket.Stats.ParalysisDEF
+		probabilty := atk - def
+
+		if int(rand) <= probabilty {
+			if !enemy.Paralised {
+				enemy.SpecialEffects(database.BuffInfections[259], int64(seconds))
+				enemy.Paralised = true
+			}
+		}
+	}
+	if character.Socket.Stats.ConfusionATK > enemy.Socket.Stats.ConfusionDEF {
+		atk := character.Socket.Stats.ConfusionATK
+		rand := utils.RandInt(0, 1000)
+		seconds := character.Socket.Stats.ConfusionTime / 10
+		def := enemy.Socket.Stats.ConfusionDEF
+		probabilty := atk - def
+
+		if int(rand) <= probabilty {
+			if !enemy.Confused {
+				enemy.SpecialEffects(database.BuffInfections[258], int64(seconds))
+				enemy.Confused = true
+			}
+		}
+	}
+	if character.Socket.Stats.PoisonATK > enemy.Socket.Stats.PoisonDEF {
+		atk := character.Socket.Stats.PoisonATK
+		rand := utils.RandInt(0, 1000)
+		seconds := character.Socket.Stats.PoisonTime / 10
+		def := enemy.Socket.Stats.PoisonDEF
+		probabilty := atk - def
+
+		if int(rand) <= probabilty {
+			if !enemy.Poisoned {
+				enemy.SpecialEffects(database.BuffInfections[257], int64(seconds))
+				enemy.Poisoned = true
+			}
+		}
+	}
+}

@@ -230,6 +230,10 @@ type Character struct {
 	YingYangTicketsLeft      bool      `db:"ying_yang_tickets" json:"ying_yang_tickets"`
 	RebornLevel              int       `db:"reborn_level" json:"reborn_level"`
 
+	Poisoned  bool `db:"-"`
+	Paralised bool `db:"-"`
+	Confused  bool `db:"-"`
+
 	AddingExp              sync.Mutex `db:"-" json:"-"`
 	AddingGold             sync.Mutex `db:"-" json:"-"`
 	Looting                sync.Mutex `db:"-" json:"-"`
@@ -665,7 +669,7 @@ func IsValidUsername(name string) (bool, error) {
 		query string
 	)
 
-	re := regexp.MustCompile("^[a-zA-Z0-9]{4,18}$")
+	re := regexp.MustCompile(`^[\p{L}\p{N}]{4,18}$`)
 	if !re.MatchString(name) {
 		return false, nil
 	}
@@ -1731,7 +1735,7 @@ func (c *Character) ReplaceItem(itemID int, where, to int16) ([]byte, error) {
 		*whereItem = *NewSlot()
 
 	} else if (to >= 0x0043 && to <= 0x132) && (where < 0x0043 || where > 0x132) && toItem.ItemID == 0 &&
-		!whereItem.Activated && !whereItem.InUse && whereInfoItem.Tradable { // From: Inventory, To: Bank
+		!whereItem.Activated && !whereItem.InUse && whereInfoItem.Tradable != 2 { // From: Inventory, To: Bank
 		whereItem.SlotID = to
 		whereItem.CharacterID = null.IntFromPtr(nil)
 		*toItem = *whereItem
@@ -1884,7 +1888,7 @@ func (c *Character) SwapItems(where, to int16) ([]byte, error) {
 		whereItem.SlotID = where
 
 	} else if (to < 0x0043 || to > 0x132) && (where < 0x0043 || where > 0x132) { // From: Inventory, To: Inventory
-		if whereItem.ItemID == toItem.ItemID && whereInfoItem.Tradable && toInfoItem.Tradable {
+		if whereItem.ItemID == toItem.ItemID && whereInfoItem.Tradable != 2 && toInfoItem.Tradable != 2 {
 			if whereItem.Activated || whereItem.InUse || toItem.Activated || toItem.InUse {
 				return nil, nil
 			}
@@ -2660,6 +2664,13 @@ func (c *Character) HandleBuffs() {
 		c.DropMultiplier -= float64(buff.DropMultiplier) / 100
 		c.RunningSpeed -= buff.RunningSpeed
 
+		stat.PoisonATK -= buff.PoisonDamage
+		stat.PoisonDEF -= buff.PoisonDEF
+		stat.ParalysisATK -= buff.PoisonDamage
+		stat.ParalysisDEF -= buff.ParalysisDEF
+		stat.ConfusionATK -= buff.ConfusionDamage
+		stat.ConfusionDEF -= buff.ConfusionDEF
+
 		if c.RunningSpeed <= 5.6 {
 			c.RunningSpeed = 5.6
 		}
@@ -3020,6 +3031,13 @@ func (c *Character) ItemEffects(st *Stat, start, end int16) error {
 				additionalExpMultiplier += item.ExpRate
 				additionalDropMultiplier += item.DropRate
 				additionalRunningSpeed += item.RunningSpeed
+
+				st.PoisonATK += item.PoisonATK
+				st.PoisonDEF += item.PoisonDEF
+				st.ParalysisATK += item.ParaATK
+				st.ParalysisDEF += item.ParaDEF
+				st.ConfusionATK += item.ConfusionATK
+				st.ConfusionDEF += item.ConfusionDEF
 			}
 		}
 	}
@@ -3884,7 +3902,7 @@ func (c *Character) GetStats() ([]byte, error) {
 	index += 2
 
 	index += 2
-	resp.Insert(utils.IntToBytes(uint64(st.Dodge), 2, true), index) // character PoisonDamage
+	resp.Insert(utils.IntToBytes(uint64(st.PoisonATK), 2, true), index) // character PoisonDamage
 	index += 2
 	resp.Insert(utils.IntToBytes(uint64(st.PoisonDEF), 2, true), index) // character PoisonDef
 	index += 2
@@ -4766,7 +4784,10 @@ func (c *Character) RegisterItem(item *InventorySlot, price uint64, itemSlot int
 		return nil, nil
 	}
 
-	if !info.Tradable {
+	// if !info.Tradable {
+	// 	return nil, nil
+	// }
+	if info.Tradable == 2 {
 		return nil, nil
 	}
 
@@ -7308,7 +7329,7 @@ func (c *Character) OpenSale(name string, slotIDs []int16, prices []uint64) ([]b
 		item := slots[slotID]
 		info := Items[item.ItemID]
 
-		if slotID == 0 || price == 0 || item == nil || item.ItemID == 0 || !info.Tradable {
+		if slotID == 0 || price == 0 || item == nil || item.ItemID == 0 || info.Tradable == 2 {
 			continue
 		}
 
@@ -7695,7 +7716,19 @@ func (c *Character) BuffEffects(stat *Stat) error {
 	//stat := c.Socket.Stats
 
 	for _, buff := range buffs {
+		if buff.Duration == 0 && buff.CanExpire {
+			buff.Delete()
+			continue
+		}
 		if buff.StartedAt+buff.Duration > c.Epoch {
+
+			stat.PoisonATK += buff.PoisonDamage
+			stat.PoisonDEF += buff.PoisonDEF
+			stat.ParalysisATK += buff.PoisonDamage
+			stat.ParalysisDEF += buff.ParalysisDEF
+			stat.ConfusionATK += buff.ConfusionDamage
+			stat.ConfusionDEF += buff.ConfusionDEF
+
 			stat.MinATK += buff.ATK
 			stat.MaxATK += buff.ATK
 			stat.ATKRate += buff.ATKRate
@@ -9262,4 +9295,40 @@ func (c *Character) CalculateInjury() []int {
 		remaining -= test2
 	}
 	return divCount
+}
+func (c *Character) SpecialEffects(infection *BuffInfection, duration int64) {
+
+	if infection == nil || c == nil {
+		return
+	}
+	expire := true
+	if duration == 0 {
+		duration = 1
+	}
+	buff, err := FindBuffByID(infection.ID, c.ID)
+	if err != nil {
+		return
+	} else {
+		if buff == nil {
+			buff = &Buff{ID: infection.ID, CharacterID: c.ID, StartedAt: c.Epoch, Duration: int64(duration), Name: infection.Name,
+				PoisonDamage:    infection.PoisonDamage + infection.AdditionalPoisonDamage*int(10),
+				PoisonDEF:       infection.ParalysisDef + infection.AdditionalPoisonDef*int(10),
+				ParalysisDamage: infection.ParalysisDamage + infection.AdditionalParalysisDamage*int(10),
+				ParalysisDEF:    infection.ParalysisDef + infection.AdditionalParalysisDef*int(10),
+				ConfusionDamage: infection.ConfusionDamage + infection.AdditionalConfusionDamage*int(10),
+				ConfusionDEF:    infection.ConfusionDef + infection.AdditionalConfusionDef*int(10),
+				SkillPlus:       int(10), CanExpire: expire,
+			}
+			err := buff.Create()
+			if err != nil {
+				log.Print(err)
+				return
+			}
+		} else {
+			buff.StartedAt = c.Epoch
+			buff.Update()
+		}
+	}
+	data, _ := c.GetStats()
+	c.Socket.Write(data)
 }

@@ -9,16 +9,21 @@ import (
 )
 
 type Buff struct {
-	ID              int     `db:"id" json:"id"`
-	CharacterID     int     `db:"character_id" json:"character_id"`
-	Name            string  `db:"name" json:"name"`
-	ATK             int     `db:"atk" json:"atk"`
-	ATKRate         int     `db:"atk_rate" json:"atk_rate"`
-	ArtsATK         int     `db:"arts_atk" json:"arts_atk"`
-	ArtsATKRate     int     `db:"arts_atk_rate" json:"arts_atk_rate"`
-	PoisonDEF       int     `db:"poison_def" json:"poison_def"`
-	ParalysisDEF    int     `db:"paralysis_def" json:"paralysis_def"`
-	ConfusionDEF    int     `db:"confusion_def" json:"confusion_def"`
+	ID          int    `db:"id" json:"id"`
+	CharacterID int    `db:"character_id" json:"character_id"`
+	Name        string `db:"name" json:"name"`
+	ATK         int    `db:"atk" json:"atk"`
+	ATKRate     int    `db:"atk_rate" json:"atk_rate"`
+	ArtsATK     int    `db:"arts_atk" json:"arts_atk"`
+	ArtsATKRate int    `db:"arts_atk_rate" json:"arts_atk_rate"`
+
+	PoisonDEF       int `db:"poison_def" json:"poison_def"`
+	ParalysisDEF    int `db:"paralysis_def" json:"paralysis_def"`
+	ConfusionDEF    int `db:"confusion_def" json:"confusion_def"`
+	PoisonDamage    int `db:"poison_dmg" json:"poison_dmg"`
+	ParalysisDamage int `db:"paralysis_dmg" json:"paralysis_dmg"`
+	ConfusionDamage int `db:"confusion_dmg" json:"confusion_dmg"`
+
 	DEF             int     `db:"def" json:"def"`
 	DEFRate         int     `db:"def_rate" json:"def_rate"`
 	ArtsDEF         int     `db:"arts_def" json:"arts_def"`
