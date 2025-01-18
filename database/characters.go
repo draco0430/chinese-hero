@@ -22,8 +22,11 @@ import (
 	"hero-server/messaging"
 	"hero-server/nats"
 	"hero-server/utils"
+	"io/ioutil"
 
 	"github.com/thoas/go-funk"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 	gorp "gopkg.in/gorp.v1"
 	null "gopkg.in/guregu/null.v3"
 )
@@ -626,7 +629,7 @@ func RefreshYingYangKeys() error {
 }
 
 func FindCharactersByUserID(userID string) ([]*Character, error) {
-
+	//db.Exec("set encoding to 'gbk'")
 	charMap := make(map[int]*Character)
 	for _, c := range characters {
 		if c.UserID == userID {
@@ -636,7 +639,7 @@ func FindCharactersByUserID(userID string) ([]*Character, error) {
 
 	var arr []*Character
 	query := `select * from hops.characters where user_id = $1`
-
+	db.Exec("set client_encoding to 'gbk'")
 	if _, err := db.Select(&arr, query, userID); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -662,20 +665,22 @@ func FindCharactersByUserID(userID string) ([]*Character, error) {
 }
 
 func IsValidUsername(name string) (bool, error) {
-
+	db.Exec("set encoding to 'gbk'")
 	var (
 		count int64
 		err   error
 		query string
 	)
 
-	re := regexp.MustCompile(`^[\p{L}\p{N}]{4,18}$`)
-	if !re.MatchString(name) {
+	re := regexp.MustCompile("^[\u4e00-\u9fa5|a-zA-Z0-9]{2,18}$")
+	utf_name := gbk2utf(name)
+	if !re.MatchString(utf_name) {
+		fmt.Printf("WrName:%s\t%x", name, []byte(name))
 		return false, nil
 	}
 
 	query = `select count(*) from hops.characters where lower(name) = $1`
-
+	db.Exec("set encoding to 'gbk'")
 	if count, err = db.SelectInt(query, strings.ToLower(name)); err != nil {
 		return false, fmt.Errorf("IsValidUsername: %s", err.Error())
 	}
@@ -684,7 +689,7 @@ func IsValidUsername(name string) (bool, error) {
 }
 
 func FindCharacterByName(name string) (*Character, error) {
-
+	//db.Exec("set encoding to 'gbk'")
 	for _, c := range characters {
 		if c.Name == name {
 			return c, nil
@@ -693,7 +698,7 @@ func FindCharacterByName(name string) (*Character, error) {
 
 	character := &Character{}
 	query := `select * from hops.characters where name = $1`
-
+	db.Exec("set encoding to 'gbk'")
 	if err := db.SelectOne(&character, query, name); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -9076,6 +9081,13 @@ func (c *Character) HasAidBuff() bool {
 	return len(funk.Filter(slots, func(s *InventorySlot) bool {
 		return (s.ItemID == 13000170 || s.ItemID == 13000171) && s.Activated && s.InUse
 	}).([]*InventorySlot)) > 0
+}
+
+func gbk2utf(name string) string {
+	bdata := []byte(name)
+	cdata, _ := ioutil.ReadAll(transform.NewReader(bytes.NewBuffer(bdata), simplifiedchinese.GBK.NewDecoder()))
+	name = string(cdata)
+	return name
 }
 
 func (c *Character) ChangeName(newname string) ([]byte, error) {
