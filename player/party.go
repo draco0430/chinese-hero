@@ -42,9 +42,9 @@ func (h *SendPartyRequestHandler) Handle(s *database.Socket, data []byte) ([]byt
 		return nil, nil
 	}
 
-	if member.Faction != s.Character.Faction {
-		return nil, nil
-	}
+	// if member.Faction != s.Character.Faction {
+	// 	return nil, nil
+	// }
 
 	party := database.FindParty(s.Character)
 	if party == nil {
